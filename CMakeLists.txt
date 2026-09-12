@@ -9,5 +9,11 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -Wpedantic -g -fsanitize=address,leak,undefined")
+
 add_executable(day1)
 target_sources(day1 PUBLIC src/day1.c)
+
+add_executable(day2)
+target_sources(day2 PUBLIC src/day2.c)
+target_link_libraries(day2 m)
