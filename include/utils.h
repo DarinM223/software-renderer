@@ -19,7 +19,7 @@ color const yellow = {255, 200, 0};
 void framebuffer_set_color(uint8_t *buf, int32_t x, int32_t y, color color)
 {
     // y = 0 is at the bottom of the screen instead of the top.
-    int const index = CHANNELS * ((HEIGHT - y) * WIDTH + x);
+    int const index = CHANNELS * ((HEIGHT - 1 - y) * WIDTH + x);
     buf[index] = color.r;
     buf[index + 1] = color.g;
     buf[index + 2] = color.b;

@@ -13,6 +13,5 @@ int main(void)
     framebuffer_set_color(buf, 7, 3, white);
     framebuffer_set_color(buf, 12, 37, white);
     framebuffer_set_color(buf, 62, 53, white);
-    stbi_write_png("framebuffer.tga", WIDTH, HEIGHT, CHANNELS, buf,
-                   WIDTH * CHANNELS);
+    stbi_write_tga("framebuffer.tga", WIDTH, HEIGHT, CHANNELS, buf);
 }

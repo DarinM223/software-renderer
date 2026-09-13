@@ -16,4 +16,5 @@ target_sources(day1 PUBLIC src/day1.c)
 
 add_executable(day2)
 target_sources(day2 PUBLIC src/day2.c)
+target_compile_options(day2 PUBLIC -O3 -march=native)
 target_link_libraries(day2 m)
