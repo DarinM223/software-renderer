@@ -18,3 +18,8 @@ add_executable(day2)
 target_sources(day2 PUBLIC src/day2.c)
 target_compile_options(day2 PUBLIC -O3 -march=native)
 target_link_libraries(day2 m)
+
+add_executable(day2_wireframe)
+target_sources(day2_wireframe PUBLIC src/day2_wireframe.c src/model.c)
+target_compile_options(day2_wireframe PUBLIC -O3 -march=native)
+target_link_libraries(day2_wireframe m)
