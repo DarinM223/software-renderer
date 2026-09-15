@@ -4,6 +4,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+#define MAX(X, Y) (((X) > (Y)) ? (X) : (Y))
+#define SWAP(T, X, Y)                                                          \
+    do {                                                                       \
+        T _tmp = X;                                                            \
+        X = Y;                                                                 \
+        Y = _tmp;                                                              \
+    } while (0)
+
 typedef struct color {
     uint8_t r;
     uint8_t g;

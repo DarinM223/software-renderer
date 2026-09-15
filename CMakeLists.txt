@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 project(software-renderer)
 
+find_package(OpenMP REQUIRED)
 include_directories(include/)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,leak,undefined")
@@ -23,3 +24,7 @@ add_executable(day2_wireframe)
 target_sources(day2_wireframe PUBLIC src/day2_wireframe.c src/model.c)
 target_compile_options(day2_wireframe PUBLIC -O3 -march=native)
 target_link_libraries(day2_wireframe m)
+
+add_executable(day3)
+target_sources(day3 PUBLIC src/day3.c src/model.c)
+target_link_libraries(day3 m OpenMP::OpenMP_C)
