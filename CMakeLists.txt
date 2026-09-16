@@ -28,3 +28,7 @@ target_link_libraries(day2_wireframe m)
 add_executable(day3)
 target_sources(day3 PUBLIC src/day3.c src/model.c)
 target_link_libraries(day3 m OpenMP::OpenMP_C)
+
+add_executable(day4)
+target_sources(day4 PUBLIC src/day4.c)
+target_link_libraries(day4 m OpenMP::OpenMP_C)
