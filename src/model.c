@@ -1,6 +1,8 @@
 #include "model.h"
+#include "geometry.h"
 #include "stb_ds.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 
 bool model_init(model *model, char const *filename)
@@ -50,6 +52,47 @@ bool model_init(model *model, char const *filename)
     model->verts = verts;
     model->facet_vrt = facet_vrt;
     return true;
+}
+
+#define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
+
+// Not reentrant but it's ok for now.
+static model *g_model = NULL;
+static int32_t sort_by_z(void const *a, void const *b)
+{
+    int32_t const a2 = *(int32_t const *)a;
+    int32_t const b2 = *(int32_t const *)b;
+    float aminz = MIN(model_vert_at_face(g_model, a2, 0).z,
+                      MIN(model_vert_at_face(g_model, a2, 1).z,
+                          model_vert_at_face(g_model, a2, 2).z));
+    float bminz = MIN(model_vert_at_face(g_model, b2, 0).z,
+                      MIN(model_vert_at_face(g_model, b2, 1).z,
+                          model_vert_at_face(g_model, b2, 2).z));
+    return aminz < bminz ? -1 : aminz > bminz ? 1 : 0;
+}
+
+void model_sort_by_z(model *model)
+{
+    int32_t *idx = malloc(model_nfaces(model) * sizeof(*idx));
+    for (size_t i = 0; i < model_nfaces(model); ++i) {
+        idx[i] = i;
+    }
+
+    g_model = model;
+    qsort(idx, model_nfaces(model), sizeof(*idx), &sort_by_z);
+    g_model = NULL;
+
+    int32_t *facet_vrt = NULL;
+    arrsetlen(facet_vrt, model_nfaces(model) * 3);
+    for (size_t i = 0; i < model_nfaces(model); ++i) {
+        for (size_t j = 0; j < 3; ++j) {
+            facet_vrt[i * 3 + j] = model->facet_vrt[idx[i] * 3 + j];
+        }
+    }
+
+    arrfree(model->facet_vrt);
+    model->facet_vrt = facet_vrt;
+    free(idx);
 }
 
 size_t model_nverts(model const *model)

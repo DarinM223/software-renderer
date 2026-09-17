@@ -117,8 +117,8 @@ void draw_bbox_rasterization(uint8_t *buf, int32_t ax, int32_t ay, int32_t bx,
     int32_t bbmaxy = MAX(MAX(ay, by), cy);
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             framebuffer_set_color(buf, x, y, color);
         }
     }
@@ -146,8 +146,8 @@ void draw_triangle_rasterization_attempt1(uint8_t *buf, int32_t ax, int32_t ay,
     double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             // Determine barycentric coordinates for (x, y).
             double alpha =
                 signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
@@ -181,8 +181,8 @@ void draw_triangle_rasterization_attempt2(uint8_t *buf, int32_t ax, int32_t ay,
     }
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             // Determine barycentric coordinates for (x, y).
             double alpha =
                 signed_triangle_area(x, y, bx, by, cx, cy) / total_area;

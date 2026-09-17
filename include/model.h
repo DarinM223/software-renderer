@@ -12,6 +12,7 @@ typedef struct model {
 } model;
 
 bool model_init(model *model, char const *filename);
+void model_sort_by_z(model *model);
 size_t model_nverts(model const *model);
 size_t model_nfaces(model const *model);
 vec3 model_vert_at_idx(model const *model, size_t const i);

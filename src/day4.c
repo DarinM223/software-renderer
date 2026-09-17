@@ -115,8 +115,8 @@ void draw_triangle_interp_grey(uint8_t *buf, int32_t ax, int32_t ay, int32_t az,
     }
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             double alpha =
                 signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
             double beta =
@@ -150,8 +150,8 @@ void draw_triangle_interp_color(uint8_t *buf, int32_t ax, int32_t ay,
     }
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             double alpha =
                 signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
             double beta =
@@ -187,8 +187,8 @@ void draw_triangle_interp_wireframe(uint8_t *buf, int32_t ax, int32_t ay,
     }
 
 #pragma omp parallel for
-    for (int32_t x = bbminx; x < bbmaxx; ++x) {
-        for (int32_t y = bbminy; y < bbmaxy; ++y) {
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
             double alpha =
                 signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
             double beta =

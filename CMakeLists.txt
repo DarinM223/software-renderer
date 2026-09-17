@@ -32,3 +32,7 @@ target_link_libraries(day3 m OpenMP::OpenMP_C)
 add_executable(day4)
 target_sources(day4 PUBLIC src/day4.c)
 target_link_libraries(day4 m OpenMP::OpenMP_C)
+
+add_executable(day5)
+target_sources(day5 PUBLIC src/day5.c src/model.c)
+target_link_libraries(day5 m OpenMP::OpenMP_C)
