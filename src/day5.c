@@ -11,15 +11,15 @@
 
 static void vec3_project(vec3 v, int32_t *x, int32_t *y)
 {
-    *x = (v.x + 1.) * (WIDTH - 1) / 2;
-    *y = (v.y + 1.) * (HEIGHT - 1) / 2;
+    *x = (VEC_X(v) + 1.) * (WIDTH - 1) / 2;
+    *y = (VEC_Y(v) + 1.) * (HEIGHT - 1) / 2;
 }
 
 static void vec3_project_z(vec3 v, int32_t *x, int32_t *y, int32_t *z)
 {
-    *x = (v.x + 1.) * (WIDTH - 1) / 2;
-    *y = (v.y + 1.) * (HEIGHT - 1) / 2;
-    *z = (v.z + 1.) * 255. / 2;
+    *x = (VEC_X(v) + 1.) * (WIDTH - 1) / 2;
+    *y = (VEC_Y(v) + 1.) * (HEIGHT - 1) / 2;
+    *z = (VEC_Z(v) + 1.) * 255. / 2;
 }
 
 void framebuffer_draw_triangle_zbuffer(uint8_t *zbuffer, uint8_t *buf,

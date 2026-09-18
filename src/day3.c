@@ -201,8 +201,8 @@ void draw_triangle_rasterization_attempt2(uint8_t *buf, int32_t ax, int32_t ay,
 
 static void vec3_project(vec3 v, int32_t *x, int32_t *y)
 {
-    *x = (v.x + 1.) * (WIDTH - 1) / 2;
-    *y = (v.y + 1.) * (HEIGHT - 1) / 2;
+    *x = (VEC_X(v) + 1.) * (WIDTH - 1) / 2;
+    *y = (VEC_Y(v) + 1.) * (HEIGHT - 1) / 2;
 }
 
 int main(void)

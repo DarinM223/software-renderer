@@ -22,13 +22,13 @@ bool model_init(model *model, char const *filename)
             for (size_t i = 0; (vert = strtok(NULL, " ")) && i < 3; i++) {
                 switch (i) {
                 case 0:
-                    v.x = atof(vert);
+                    v.data[0] = atof(vert);
                     break;
                 case 1:
-                    v.y = atof(vert);
+                    v.data[1] = atof(vert);
                     break;
                 case 2:
-                    v.z = atof(vert);
+                    v.data[2] = atof(vert);
                     break;
                 }
             }
@@ -62,12 +62,12 @@ static int32_t sort_by_z(void const *a, void const *b)
 {
     int32_t const a2 = *(int32_t const *)a;
     int32_t const b2 = *(int32_t const *)b;
-    float aminz = MIN(model_vert_at_face(g_model, a2, 0).z,
-                      MIN(model_vert_at_face(g_model, a2, 1).z,
-                          model_vert_at_face(g_model, a2, 2).z));
-    float bminz = MIN(model_vert_at_face(g_model, b2, 0).z,
-                      MIN(model_vert_at_face(g_model, b2, 1).z,
-                          model_vert_at_face(g_model, b2, 2).z));
+    float aminz = MIN(VEC_Z(model_vert_at_face(g_model, a2, 0)),
+                      MIN(VEC_Z(model_vert_at_face(g_model, a2, 1)),
+                          VEC_Z(model_vert_at_face(g_model, a2, 2))));
+    float bminz = MIN(VEC_Z(model_vert_at_face(g_model, b2, 0)),
+                      MIN(VEC_Z(model_vert_at_face(g_model, b2, 1)),
+                          VEC_Z(model_vert_at_face(g_model, b2, 2))));
     return aminz < bminz ? -1 : aminz > bminz ? 1 : 0;
 }
 
