@@ -2,6 +2,7 @@
 #define GEOMETRY_H
 
 #include <stdint.h>
+#include <stdio.h>
 
 #define PREV_4 3
 #define PREV_3 2
@@ -134,11 +135,11 @@ static inline vec3 cross(vec3 const v1, vec3 const v2)
                    VEC_X(v1) * VEC_Y(v2) - VEC_Y(v1) * VEC_X(v2)}};
 }
 
-#define MAT(R, C) GLUE4(mat_, R, _, C)
+#define MAT(R, C) GLUE4(mat, R, _, C)
 #define DEFINE_MAT(NROWS, NCOLS)                                               \
-    typedef struct mat_##NROWS##_##NCOLS {                                     \
+    typedef struct mat##NROWS##_##NCOLS {                                      \
         vec##NCOLS rows[NROWS];                                                \
-    } mat_##NROWS##_##NCOLS;
+    } mat##NROWS##_##NCOLS;
 
 DEFINE_MAT(1, 1)
 DEFINE_MAT(1, 2)
@@ -152,23 +153,23 @@ DEFINE_MAT(3, 3)
 
 #define MAT_IDX(MAT, R, C) (MAT)->rows[R].data[C]
 
-static inline double det_1(mat_1_1 *const src)
+static inline double det_1(mat1_1 *const src)
 {
     return MAT_IDX(src, 0, 0);
 }
 
 #define DEFINE_DET(N)                                                          \
-    static inline double det_##N(mat_##N##_##N *const src)                     \
+    static inline double det_##N(MAT(N, N) *const src)                         \
     {                                                                          \
         double ret = 0;                                                        \
         for (int32_t i = N; i--;                                               \
-             ret += MAT_IDX(src, 0, i) * mat_##N##_##N##_cofactor(src, 0, i))  \
+             ret += MAT_IDX(src, 0, i) * mat##N##_##N##_cofactor(src, 0, i))   \
             ;                                                                  \
         return ret;                                                            \
     }
 
 #define MAT_COFACTOR(NROWS, NCOLS)                                             \
-    static inline double mat_##NROWS##_##NCOLS##_cofactor(                     \
+    static inline double mat##NROWS##_##NCOLS##_cofactor(                      \
         MAT(NROWS, NCOLS) const *matrix, int32_t const row, int32_t const col) \
     {                                                                          \
         MAT(PREV(NROWS), PREV(NCOLS)) submatrix;                               \
@@ -184,17 +185,17 @@ static inline double det_1(mat_1_1 *const src)
     }
 
 #define MAT_INVERT_TRANSPOSE(NROWS, NCOLS)                                     \
-    static inline MAT(NROWS, NCOLS) mat_##NROWS##_##NCOLS##_invert_transpose(  \
+    static inline MAT(NROWS, NCOLS) mat##NROWS##_##NCOLS##_invert_transpose(   \
         MAT(NROWS, NCOLS) const *matrix)                                       \
     {                                                                          \
         MAT(NROWS, NCOLS) adjugate_transpose;                                  \
         for (int32_t i = NROWS; i--;) {                                        \
             for (int32_t j = NCOLS; j--;                                       \
                  MAT_IDX(&adjugate_transpose, i, j) =                          \
-                     mat_##NROWS##_##NCOLS##_cofactor(matrix, i, j))           \
+                     mat##NROWS##_##NCOLS##_cofactor(matrix, i, j))            \
                 ;                                                              \
         }                                                                      \
-        return mat_##NROWS##_##NCOLS##_div_scalar(                             \
+        return mat##NROWS##_##NCOLS##_div_scalar(                              \
             &adjugate_transpose,                                               \
             vec##NCOLS##_mul_dot(adjugate_transpose.rows[0],                   \
                                  matrix->rows[0]));                            \
@@ -202,16 +203,16 @@ static inline double det_1(mat_1_1 *const src)
 
 #define MAT_INVERT(NROWS, NCOLS)                                               \
     static inline MAT(NROWS, NCOLS)                                            \
-        mat_##NROWS##_##NCOLS##_invert(MAT(NROWS, NCOLS) const *matrix)        \
+        mat##NROWS##_##NCOLS##_invert(MAT(NROWS, NCOLS) const *matrix)         \
     {                                                                          \
         MAT(NROWS, NCOLS)                                                      \
-        inv_trans = mat_##NROWS##_##NCOLS##_invert_transpose(matrix);          \
-        return mat_##NROWS##_##NCOLS##_transpose(&inv_trans);                  \
+        inv_trans = mat##NROWS##_##NCOLS##_invert_transpose(matrix);           \
+        return mat##NROWS##_##NCOLS##_transpose(&inv_trans);                   \
     }
 
 #define MAT_TRANSPOSE(NROWS, NCOLS)                                            \
     static inline MAT(NCOLS, NROWS)                                            \
-        mat_##NROWS##_##NCOLS##_transpose(MAT(NROWS, NCOLS) const *matrix)     \
+        mat##NROWS##_##NCOLS##_transpose(MAT(NROWS, NCOLS) const *matrix)      \
     {                                                                          \
         MAT(NCOLS, NROWS) ret;                                                 \
         for (int32_t i = NCOLS; i--;) {                                        \
@@ -223,7 +224,7 @@ static inline double det_1(mat_1_1 *const src)
     }
 
 #define MAT_MUL_MAT(R1, C1, C2)                                                \
-    static inline MAT(R1, C2) mat_##R1##_##C1##_mul_mat_##C1##_##C2(           \
+    static inline MAT(R1, C2) mat##R1##_##C1##_mul_mat##C1##_##C2(             \
         MAT(R1, C1) const *lhs, MAT(C1, C2) const *rhs)                        \
     {                                                                          \
         MAT(R1, C2) ret;                                                       \
@@ -239,16 +240,16 @@ static inline double det_1(mat_1_1 *const src)
     }
 
 #define VEC_MUL_MAT(NROWS, NCOLS)                                              \
-    static inline VEC(NCOLS) vec##NROWS##_mul_mat_##NROWS##_##NCOLS(           \
+    static inline VEC(NCOLS) vec##NROWS##_mul_mat##NROWS##_##NCOLS(            \
         VEC(NROWS) const *lhs, MAT(NROWS, NCOLS) const *rhs)                   \
     {                                                                          \
         MAT(1, NROWS) mat_lhs = {{*lhs}};                                      \
-        return mat_1_##NROWS##_mul##_mat_##NROWS##_##NCOLS(&mat_lhs, rhs)      \
+        return mat1_##NROWS##_mul##_mat##NROWS##_##NCOLS(&mat_lhs, rhs)        \
             .rows[0];                                                          \
     }
 
 #define MAT_MUL_VEC(NROWS, NCOLS)                                              \
-    static inline VEC(NROWS) mat_##NROWS##_##NCOLS##_mul_vec##NROWS(           \
+    static inline VEC(NROWS) mat##NROWS##_##NCOLS##_mul_vec##NROWS(            \
         MAT(NROWS, NCOLS) const *lhs, VEC(NCOLS) const *rhs)                   \
     {                                                                          \
         VEC(NROWS) ret;                                                        \
@@ -259,7 +260,7 @@ static inline double det_1(mat_1_1 *const src)
     }
 
 #define MAT_MUL_SCALAR(NROWS, NCOLS)                                           \
-    static inline MAT(NROWS, NCOLS) mat_##NROWS##_##NCOLS##_mul_scalar(        \
+    static inline MAT(NROWS, NCOLS) mat##NROWS##_##NCOLS##_mul_scalar(         \
         MAT(NROWS, NCOLS) const *lhs, double const val)                        \
     {                                                                          \
         MAT(NROWS, NCOLS) result;                                              \
@@ -270,7 +271,7 @@ static inline double det_1(mat_1_1 *const src)
     }
 
 #define MAT_DIV_SCALAR(NROWS, NCOLS)                                           \
-    static inline MAT(NROWS, NCOLS) mat_##NROWS##_##NCOLS##_div_scalar(        \
+    static inline MAT(NROWS, NCOLS) mat##NROWS##_##NCOLS##_div_scalar(         \
         MAT(NROWS, NCOLS) const *lhs, double const val)                        \
     {                                                                          \
         MAT(NROWS, NCOLS) result;                                              \
@@ -278,6 +279,52 @@ static inline double det_1(mat_1_1 *const src)
              result.rows[i] = vec##NCOLS##_div_scalar(lhs->rows[i], val))      \
             ;                                                                  \
         return result;                                                         \
+    }
+
+#define MAT_ADD(NROWS, NCOLS)                                                  \
+    static inline MAT(NROWS, NCOLS) mat##NROWS##_##NCOLS##_add(                \
+        MAT(NROWS, NCOLS) const *lhs, MAT(NROWS, NCOLS) const *rhs)            \
+    {                                                                          \
+        MAT(NROWS, NCOLS) result;                                              \
+        for (int32_t i = NROWS; i--;) {                                        \
+            for (int32_t j = NCOLS; j--;                                       \
+                 MAT_IDX(&result, i, j) =                                      \
+                     MAT_IDX(lhs, i, j) + MAT_IDX(rhs, i, j))                  \
+                ;                                                              \
+        }                                                                      \
+        return result;                                                         \
+    }
+
+#define MAT_SUB(NROWS, NCOLS)                                                  \
+    static inline MAT(NROWS, NCOLS) mat##NROWS##_##NCOLS##_sub(                \
+        MAT(NROWS, NCOLS) const *lhs, MAT(NROWS, NCOLS) const *rhs)            \
+    {                                                                          \
+        MAT(NROWS, NCOLS) result;                                              \
+        for (int32_t i = NROWS; i--;) {                                        \
+            for (int32_t j = NCOLS; j--;                                       \
+                 MAT_IDX(&result, i, j) =                                      \
+                     MAT_IDX(lhs, i, j) - MAT_IDX(rhs, i, j))                  \
+                ;                                                              \
+        }                                                                      \
+        return result;                                                         \
+    }
+
+#define VEC_PRINT(N)                                                           \
+    static inline void vec##N##_print(VEC(N) v, FILE *stream)                  \
+    {                                                                          \
+        for (int32_t i = 0; i < N; ++i) {                                      \
+            fprintf(stream, "%f ", v.data[i]);                                 \
+        }                                                                      \
+    }
+
+#define MAT_PRINT(NROWS, NCOLS)                                                \
+    static inline void mat##NROWS##_##NCOLS##_print(                           \
+        MAT(NROWS, NCOLS) const *matrix, FILE *stream)                         \
+    {                                                                          \
+        for (int32_t i = 0; i < NROWS; ++i) {                                  \
+            vec##NCOLS##_print(matrix->rows[i], stream);                       \
+            fprintf(stream, "\n");                                             \
+        }                                                                      \
     }
 
 MAT_COFACTOR(2, 2)
@@ -353,6 +400,37 @@ MAT_INVERT_TRANSPOSE(2, 2)
 MAT_INVERT_TRANSPOSE(3, 3)
 MAT_INVERT(2, 2)
 MAT_INVERT(3, 3)
+MAT_ADD(1, 1)
+MAT_ADD(1, 2)
+MAT_ADD(1, 3)
+MAT_ADD(2, 1)
+MAT_ADD(2, 2)
+MAT_ADD(2, 3)
+MAT_ADD(3, 1)
+MAT_ADD(3, 2)
+MAT_ADD(3, 3)
+MAT_SUB(1, 1)
+MAT_SUB(1, 2)
+MAT_SUB(1, 3)
+MAT_SUB(2, 1)
+MAT_SUB(2, 2)
+MAT_SUB(2, 3)
+MAT_SUB(3, 1)
+MAT_SUB(3, 2)
+MAT_SUB(3, 3)
+
+VEC_PRINT(1)
+VEC_PRINT(2)
+VEC_PRINT(3)
+MAT_PRINT(1, 1)
+MAT_PRINT(1, 2)
+MAT_PRINT(1, 3)
+MAT_PRINT(2, 1)
+MAT_PRINT(2, 2)
+MAT_PRINT(2, 3)
+MAT_PRINT(3, 1)
+MAT_PRINT(3, 2)
+MAT_PRINT(3, 3)
 
 static inline double signed_triangle_area(int32_t ax, int32_t ay, int32_t bx,
                                           int32_t by, int32_t cx, int32_t cy)

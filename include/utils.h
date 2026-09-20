@@ -27,12 +27,14 @@ color const yellow = {255, 200, 0};
 
 #if defined(WIDTH) && defined(HEIGHT) && defined(CHANNELS)
 #include <stdlib.h>
-color framebuffer_get_color(uint8_t *buf, uint8_t x, uint8_t y) {
+color framebuffer_get_color(uint8_t *buf, uint8_t x, uint8_t y)
+{
     int const index = CHANNELS * ((HEIGHT - 1 - y) * WIDTH + x);
     return (color){.r = buf[index], .g = buf[index + 1], .b = buf[index + 2]};
 }
 void framebuffer_set_color(uint8_t *buf, int32_t x, int32_t y, color color)
 {
+    if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) return;
     // y = 0 is at the bottom of the screen instead of the top.
     int const index = CHANNELS * ((HEIGHT - 1 - y) * WIDTH + x);
     buf[index] = color.r;
@@ -108,6 +110,89 @@ void framebuffer_draw_triangle(uint8_t *buf, int32_t ax, int32_t ay, int32_t bx,
             if (alpha < 0 || beta < 0 || gamma < 0) {
                 continue;
             }
+            framebuffer_set_color(buf, x, y, color);
+        }
+    }
+}
+
+void framebuffer_draw_triangle_z(uint8_t *zbuffer, uint8_t *buf, int32_t ax,
+                                 int32_t ay, int32_t az, int32_t bx, int32_t by,
+                                 int32_t bz, int32_t cx, int32_t cy, int32_t cz,
+                                 color color)
+{
+    // Sneaky clipping logic added in day6, would cause crashing if omitted.
+    int32_t bbminx = MAX(0, MIN(MIN(ax, bx), cx));
+    int32_t bbminy = MAX(0, MIN(MIN(ay, by), cy));
+    int32_t bbmaxx = MIN(WIDTH - 1, MAX(MAX(ax, bx), cx));
+    int32_t bbmaxy = MIN(HEIGHT - 1, MAX(MAX(ay, by), cy));
+    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+    // Backface culling + discarding triangles that cover less than a pixel.
+    if (total_area < 1) {
+        return;
+    }
+
+#pragma omp parallel for
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
+            // Determine barycentric coordinates for (x, y).
+            double alpha =
+                signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
+            double beta =
+                signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
+            double gamma =
+                signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+            // Don't color coordinates that are not in the triangle.
+            if (alpha < 0 || beta < 0 || gamma < 0) {
+                continue;
+            }
+            uint8_t z = alpha * az + beta * bz + gamma * cz;
+            // If pixel's z value is inferior to the one already painted, then
+            // discard it.
+            if (z <= zbuffer[y * WIDTH + x]) {
+                continue;
+            }
+            zbuffer[y * WIDTH + x] = z;
+            framebuffer_set_color(buf, x, y, color);
+        }
+    }
+}
+void framebuffer_draw_triangle_z_float(float *zbuffer, uint8_t *buf, int32_t ax,
+                                       int32_t ay, int32_t az, int32_t bx,
+                                       int32_t by, int32_t bz, int32_t cx,
+                                       int32_t cy, int32_t cz, color color)
+{
+    // Sneaky clipping logic added in day6, would cause crashing if omitted.
+    int32_t bbminx = MAX(0, MIN(MIN(ax, bx), cx));
+    int32_t bbminy = MAX(0, MIN(MIN(ay, by), cy));
+    int32_t bbmaxx = MIN(WIDTH - 1, MAX(MAX(ax, bx), cx));
+    int32_t bbmaxy = MIN(HEIGHT - 1, MAX(MAX(ay, by), cy));
+    double total_area = signed_triangle_area(ax, ay, bx, by, cx, cy);
+    // Backface culling + discarding triangles that cover less than a pixel.
+    if (total_area < 1) {
+        return;
+    }
+
+#pragma omp parallel for
+    for (int32_t x = bbminx; x <= bbmaxx; ++x) {
+        for (int32_t y = bbminy; y <= bbmaxy; ++y) {
+            // Determine barycentric coordinates for (x, y).
+            double alpha =
+                signed_triangle_area(x, y, bx, by, cx, cy) / total_area;
+            double beta =
+                signed_triangle_area(x, y, cx, cy, ax, ay) / total_area;
+            double gamma =
+                signed_triangle_area(x, y, ax, ay, bx, by) / total_area;
+            // Don't color coordinates that are not in the triangle.
+            if (alpha < 0 || beta < 0 || gamma < 0) {
+                continue;
+            }
+            float z = alpha * az + beta * bz + gamma * cz;
+            // If pixel's z value is inferior to the one already painted, then
+            // discard it.
+            if (z <= zbuffer[y * WIDTH + x]) {
+                continue;
+            }
+            zbuffer[y * WIDTH + x] = z;
             framebuffer_set_color(buf, x, y, color);
         }
     }
