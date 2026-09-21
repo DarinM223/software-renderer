@@ -19,6 +19,14 @@
       "program": "${workspaceRoot}/day5",
       "args": ["obj/diablo3_pose.obj"],
       "cwd": "${workspaceRoot}"
+    },
+    {
+      "name": "Launch Day7",
+      "type": "lldb",
+      "request": "launch",
+      "program": "${workspaceRoot}/day7",
+      "args": ["obj/diablo3_pose.obj"],
+      "cwd": "${workspaceRoot}"
     }
   ]
 }

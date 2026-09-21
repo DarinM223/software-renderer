@@ -33,6 +33,17 @@
 DEFINE_VEC(1)
 DEFINE_VEC(2)
 DEFINE_VEC(3)
+DEFINE_VEC(4)
+
+static inline vec3 vec2_extend(vec2 const v, double d)
+{
+    return (vec3){{v.data[0], v.data[1], d}};
+}
+
+static inline vec4 vec3_extend(vec3 const v, double d)
+{
+    return (vec4){{v.data[0], v.data[1], v.data[2], d}};
+}
 
 #define VEC_MULTIPLY_DOT(N)                                                    \
     static inline double vec##N##_mul_dot(vec##N const lhs, vec##N const rhs)  \
@@ -121,14 +132,29 @@ VEC_MULTIPLY_SCALAR_RHS(3)
 VEC_DIVIDE_SCALAR(3)
 VEC_ADD(3)
 VEC_SUB(3)
+VEC_MULTIPLY_DOT(4)
+VEC_MULTIPLY_COMP(4)
+VEC_MULTIPLY_SCALAR_LHS(4)
+VEC_MULTIPLY_SCALAR_RHS(4)
+VEC_DIVIDE_SCALAR(4)
+VEC_ADD(4)
+VEC_SUB(4)
 
 #define VEC_NORMALIZE(N, V) sqrt(vec##N##_mul_dot((V), (V)))
-#define VEC_NORMALIZED(N, V) vec##n##_div_scalar((V), VEC_NORMALIZE(N, V))
+#define VEC_NORMALIZED(N, V) vec##N##_div_scalar((V), VEC_NORMALIZE(N, V))
 #define VEC_X(V) (V).data[0]
 #define VEC_Y(V) (V).data[1]
 #define VEC_Z(V) (V).data[2]
+#define VEC_W(V) (V).data[3]
+#define VEC_XY(V)                                                              \
+    (vec2)                                                                     \
+    {                                                                          \
+        {                                                                      \
+            VEC_X(V), VEC_Y(V)                                                 \
+        }                                                                      \
+    }
 
-static inline vec3 cross(vec3 const v1, vec3 const v2)
+static inline vec3 vec3_cross(vec3 const v1, vec3 const v2)
 {
     return (vec3){{VEC_Y(v1) * VEC_Z(v2) - VEC_Z(v1) * VEC_Y(v2),
                    VEC_Z(v1) * VEC_X(v2) - VEC_X(v1) * VEC_Z(v2),
@@ -144,22 +170,29 @@ static inline vec3 cross(vec3 const v1, vec3 const v2)
 DEFINE_MAT(1, 1)
 DEFINE_MAT(1, 2)
 DEFINE_MAT(1, 3)
+DEFINE_MAT(1, 4)
 DEFINE_MAT(2, 1)
 DEFINE_MAT(2, 2)
 DEFINE_MAT(2, 3)
+DEFINE_MAT(2, 4)
 DEFINE_MAT(3, 1)
 DEFINE_MAT(3, 2)
 DEFINE_MAT(3, 3)
+DEFINE_MAT(3, 4)
+DEFINE_MAT(4, 1)
+DEFINE_MAT(4, 2)
+DEFINE_MAT(4, 3)
+DEFINE_MAT(4, 4)
 
 #define MAT_IDX(MAT, R, C) (MAT)->rows[R].data[C]
 
-static inline double det_1(mat1_1 *const src)
+static inline double mat1_1_det(mat1_1 const *src)
 {
     return MAT_IDX(src, 0, 0);
 }
 
 #define DEFINE_DET(N)                                                          \
-    static inline double det_##N(MAT(N, N) *const src)                         \
+    static inline double mat##N##_##N##_det(MAT(N, N) const *src)              \
     {                                                                          \
         double ret = 0;                                                        \
         for (int32_t i = N; i--;                                               \
@@ -180,7 +213,7 @@ static inline double det_1(mat1_1 *const src)
                 ;                                                              \
             ;                                                                  \
         }                                                                      \
-        return GLUE2(det_, PREV(NCOLS))(&submatrix) *                          \
+        return GLUE2(MAT(PREV(NCOLS), PREV(NCOLS)), _det)(&submatrix) *        \
                ((row + col) % 2 ? -1 : 1);                                     \
     }
 
@@ -250,11 +283,11 @@ static inline double det_1(mat1_1 *const src)
 
 #define MAT_MUL_VEC(NROWS, NCOLS)                                              \
     static inline VEC(NROWS) mat##NROWS##_##NCOLS##_mul_vec##NROWS(            \
-        MAT(NROWS, NCOLS) const *lhs, VEC(NCOLS) const *rhs)                   \
+        MAT(NROWS, NCOLS) const *lhs, VEC(NCOLS) const rhs)                    \
     {                                                                          \
         VEC(NROWS) ret;                                                        \
         for (int32_t i = NROWS; i--;                                           \
-             ret.data[i] = vec##NCOLS##_mul_dot(lhs->rows[i], *rhs))           \
+             ret.data[i] = vec##NCOLS##_mul_dot(lhs->rows[i], rhs))            \
             ;                                                                  \
         return ret;                                                            \
     }
@@ -330,107 +363,199 @@ static inline double det_1(mat1_1 *const src)
 MAT_COFACTOR(2, 2)
 DEFINE_DET(2)
 MAT_COFACTOR(3, 3)
+DEFINE_DET(3)
+MAT_COFACTOR(4, 4)
 MAT_TRANSPOSE(2, 2)
 MAT_TRANSPOSE(3, 3)
+MAT_TRANSPOSE(4, 4)
 
 MAT_MUL_SCALAR(1, 1)
 MAT_MUL_SCALAR(1, 2)
 MAT_MUL_SCALAR(1, 3)
+MAT_MUL_SCALAR(1, 4)
 MAT_MUL_SCALAR(2, 1)
 MAT_MUL_SCALAR(2, 2)
 MAT_MUL_SCALAR(2, 3)
+MAT_MUL_SCALAR(2, 4)
 MAT_MUL_SCALAR(3, 1)
 MAT_MUL_SCALAR(3, 2)
 MAT_MUL_SCALAR(3, 3)
+MAT_MUL_SCALAR(3, 4)
+MAT_MUL_SCALAR(4, 1)
+MAT_MUL_SCALAR(4, 2)
+MAT_MUL_SCALAR(4, 3)
+MAT_MUL_SCALAR(4, 4)
 MAT_DIV_SCALAR(1, 1)
 MAT_DIV_SCALAR(1, 2)
 MAT_DIV_SCALAR(1, 3)
+MAT_DIV_SCALAR(1, 4)
 MAT_DIV_SCALAR(2, 1)
 MAT_DIV_SCALAR(2, 2)
 MAT_DIV_SCALAR(2, 3)
+MAT_DIV_SCALAR(2, 4)
 MAT_DIV_SCALAR(3, 1)
 MAT_DIV_SCALAR(3, 2)
 MAT_DIV_SCALAR(3, 3)
+MAT_DIV_SCALAR(3, 4)
+MAT_DIV_SCALAR(4, 1)
+MAT_DIV_SCALAR(4, 2)
+MAT_DIV_SCALAR(4, 3)
+MAT_DIV_SCALAR(4, 4)
 MAT_MUL_VEC(1, 1)
 MAT_MUL_VEC(1, 2)
 MAT_MUL_VEC(1, 3)
+MAT_MUL_VEC(1, 4)
 MAT_MUL_VEC(2, 1)
 MAT_MUL_VEC(2, 2)
 MAT_MUL_VEC(2, 3)
+MAT_MUL_VEC(2, 4)
 MAT_MUL_VEC(3, 1)
 MAT_MUL_VEC(3, 2)
 MAT_MUL_VEC(3, 3)
+MAT_MUL_VEC(3, 4)
+MAT_MUL_VEC(4, 1)
+MAT_MUL_VEC(4, 2)
+MAT_MUL_VEC(4, 3)
+MAT_MUL_VEC(4, 4)
 MAT_MUL_MAT(1, 1, 1)
 MAT_MUL_MAT(1, 2, 1)
 MAT_MUL_MAT(1, 3, 1)
+MAT_MUL_MAT(1, 4, 1)
 MAT_MUL_MAT(1, 1, 2)
 MAT_MUL_MAT(1, 2, 2)
 MAT_MUL_MAT(1, 3, 2)
+MAT_MUL_MAT(1, 4, 2)
 MAT_MUL_MAT(1, 1, 3)
 MAT_MUL_MAT(1, 2, 3)
 MAT_MUL_MAT(1, 3, 3)
+MAT_MUL_MAT(1, 4, 3)
+MAT_MUL_MAT(1, 1, 4)
+MAT_MUL_MAT(1, 2, 4)
+MAT_MUL_MAT(1, 3, 4)
+MAT_MUL_MAT(1, 4, 4)
 MAT_MUL_MAT(2, 1, 1)
 MAT_MUL_MAT(2, 2, 1)
 MAT_MUL_MAT(2, 3, 1)
+MAT_MUL_MAT(2, 4, 1)
 MAT_MUL_MAT(2, 1, 2)
 MAT_MUL_MAT(2, 2, 2)
 MAT_MUL_MAT(2, 3, 2)
+MAT_MUL_MAT(2, 4, 2)
 MAT_MUL_MAT(2, 1, 3)
 MAT_MUL_MAT(2, 2, 3)
 MAT_MUL_MAT(2, 3, 3)
+MAT_MUL_MAT(2, 4, 3)
+MAT_MUL_MAT(2, 1, 4)
+MAT_MUL_MAT(2, 2, 4)
+MAT_MUL_MAT(2, 3, 4)
+MAT_MUL_MAT(2, 4, 4)
 MAT_MUL_MAT(3, 1, 1)
 MAT_MUL_MAT(3, 2, 1)
 MAT_MUL_MAT(3, 3, 1)
+MAT_MUL_MAT(3, 4, 1)
 MAT_MUL_MAT(3, 1, 2)
 MAT_MUL_MAT(3, 2, 2)
 MAT_MUL_MAT(3, 3, 2)
+MAT_MUL_MAT(3, 4, 2)
 MAT_MUL_MAT(3, 1, 3)
 MAT_MUL_MAT(3, 2, 3)
 MAT_MUL_MAT(3, 3, 3)
+MAT_MUL_MAT(3, 4, 3)
+MAT_MUL_MAT(3, 1, 4)
+MAT_MUL_MAT(3, 2, 4)
+MAT_MUL_MAT(3, 3, 4)
+MAT_MUL_MAT(3, 4, 4)
+MAT_MUL_MAT(4, 1, 1)
+MAT_MUL_MAT(4, 2, 1)
+MAT_MUL_MAT(4, 3, 1)
+MAT_MUL_MAT(4, 4, 1)
+MAT_MUL_MAT(4, 1, 2)
+MAT_MUL_MAT(4, 2, 2)
+MAT_MUL_MAT(4, 3, 2)
+MAT_MUL_MAT(4, 4, 2)
+MAT_MUL_MAT(4, 1, 3)
+MAT_MUL_MAT(4, 2, 3)
+MAT_MUL_MAT(4, 3, 3)
+MAT_MUL_MAT(4, 4, 3)
+MAT_MUL_MAT(4, 1, 4)
+MAT_MUL_MAT(4, 2, 4)
+MAT_MUL_MAT(4, 3, 4)
+MAT_MUL_MAT(4, 4, 4)
 VEC_MUL_MAT(1, 1)
 VEC_MUL_MAT(1, 2)
 VEC_MUL_MAT(1, 3)
+VEC_MUL_MAT(1, 4)
 VEC_MUL_MAT(2, 1)
 VEC_MUL_MAT(2, 2)
 VEC_MUL_MAT(2, 3)
+VEC_MUL_MAT(2, 4)
 VEC_MUL_MAT(3, 1)
 VEC_MUL_MAT(3, 2)
 VEC_MUL_MAT(3, 3)
+VEC_MUL_MAT(3, 4)
+VEC_MUL_MAT(4, 1)
+VEC_MUL_MAT(4, 2)
+VEC_MUL_MAT(4, 3)
+VEC_MUL_MAT(4, 4)
 MAT_INVERT_TRANSPOSE(2, 2)
 MAT_INVERT_TRANSPOSE(3, 3)
+MAT_INVERT_TRANSPOSE(4, 4)
 MAT_INVERT(2, 2)
 MAT_INVERT(3, 3)
+MAT_INVERT(4, 4)
 MAT_ADD(1, 1)
 MAT_ADD(1, 2)
 MAT_ADD(1, 3)
+MAT_ADD(1, 4)
 MAT_ADD(2, 1)
 MAT_ADD(2, 2)
 MAT_ADD(2, 3)
+MAT_ADD(2, 4)
 MAT_ADD(3, 1)
 MAT_ADD(3, 2)
 MAT_ADD(3, 3)
+MAT_ADD(3, 4)
+MAT_ADD(4, 1)
+MAT_ADD(4, 2)
+MAT_ADD(4, 3)
+MAT_ADD(4, 4)
 MAT_SUB(1, 1)
 MAT_SUB(1, 2)
 MAT_SUB(1, 3)
+MAT_SUB(1, 4)
 MAT_SUB(2, 1)
 MAT_SUB(2, 2)
 MAT_SUB(2, 3)
+MAT_SUB(2, 4)
 MAT_SUB(3, 1)
 MAT_SUB(3, 2)
 MAT_SUB(3, 3)
+MAT_SUB(3, 4)
+MAT_SUB(4, 1)
+MAT_SUB(4, 2)
+MAT_SUB(4, 3)
+MAT_SUB(4, 4)
 
 VEC_PRINT(1)
 VEC_PRINT(2)
 VEC_PRINT(3)
+VEC_PRINT(4)
 MAT_PRINT(1, 1)
 MAT_PRINT(1, 2)
 MAT_PRINT(1, 3)
+MAT_PRINT(1, 4)
 MAT_PRINT(2, 1)
 MAT_PRINT(2, 2)
 MAT_PRINT(2, 3)
+MAT_PRINT(2, 4)
 MAT_PRINT(3, 1)
 MAT_PRINT(3, 2)
 MAT_PRINT(3, 3)
+MAT_PRINT(3, 4)
+MAT_PRINT(4, 1)
+MAT_PRINT(4, 2)
+MAT_PRINT(4, 3)
+MAT_PRINT(4, 4)
 
 static inline double signed_triangle_area(int32_t ax, int32_t ay, int32_t bx,
                                           int32_t by, int32_t cx, int32_t cy)

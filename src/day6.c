@@ -16,7 +16,7 @@ static vec3 vec3_rot(vec3 v)
     double const a = M_PI / 6;
     mat3_3 const Ry = {
         {{{cos(a), 0, sin(a)}}, {{0, 1, 0}}, {{-sin(a), 0, cos(a)}}}};
-    return mat3_3_mul_vec3(&Ry, &v);
+    return mat3_3_mul_vec3(&Ry, v);
 }
 
 static vec3 vec3_perspective(vec3 v)
