@@ -19,11 +19,11 @@ typedef struct color {
     uint8_t b;
 } color;
 
-color const white = {255, 255, 255};
-color const green = {0, 255, 0};
-color const red = {255, 0, 0};
-color const blue = {64, 128, 255};
-color const yellow = {255, 200, 0};
+static color const white = {255, 255, 255};
+static color const green = {0, 255, 0};
+static color const red = {255, 0, 0};
+static color const blue = {64, 128, 255};
+static color const yellow = {255, 200, 0};
 
 #if defined(WIDTH) && defined(HEIGHT) && defined(CHANNELS)
 #include <stdlib.h>

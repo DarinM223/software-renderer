@@ -153,6 +153,13 @@ VEC_SUB(4)
             VEC_X(V), VEC_Y(V)                                                 \
         }                                                                      \
     }
+#define VEC_XYZ(V)                                                             \
+    (vec3)                                                                     \
+    {                                                                          \
+        {                                                                      \
+            VEC_X(V), VEC_Y(V), VEC_Z(V)                                       \
+        }                                                                      \
+    }
 
 static inline vec3 vec3_cross(vec3 const v1, vec3 const v2)
 {

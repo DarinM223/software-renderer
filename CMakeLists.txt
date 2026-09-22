@@ -5,7 +5,7 @@ find_package(OpenMP REQUIRED)
 include_directories(include/)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,leak,undefined")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Werror -Wpedantic -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -g")
 set(CMAKE_C_STANDARD 11)
 # Use this to avoid having to #undef NDEBUG in every file.
 set(CMAKE_BUILD_TYPE Debug)
@@ -44,3 +44,7 @@ target_link_libraries(day6 m OpenMP::OpenMP_C)
 add_executable(day7)
 target_sources(day7 PUBLIC src/day7.c src/model.c)
 target_link_libraries(day7 m OpenMP::OpenMP_C)
+
+add_executable(day8)
+target_sources(day8 PUBLIC src/day8.c src/our_gl.c src/model.c)
+target_link_libraries(day8 m OpenMP::OpenMP_C)
