@@ -1,20 +1,26 @@
 #include "model.h"
 #include "geometry.h"
 #include "stb_ds.h"
+#include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 
+#define BUF_SIZE 512
+
 bool model_init(model *model, char const *filename)
 {
     vec3 *verts = NULL;
+    vec3 *normals = NULL;
     int32_t *facet_vrt = NULL;
-    char buf[512];
+    int32_t *facet_tex = NULL;
+    int32_t *facet_norm = NULL;
+    char buf[BUF_SIZE];
     FILE *file = fopen(filename, "r");
     if (!file) {
         return false;
     }
-    while (fgets(buf, 512, file)) {
+    while (fgets(buf, BUF_SIZE, file)) {
         if (buf[0] == 'v' && buf[1] == ' ') {
             strtok(buf, " ");
             vec3 v = {0};
@@ -33,24 +39,66 @@ bool model_init(model *model, char const *filename)
                 }
             }
             arrput(verts, v);
-        } else if (buf[0] == 'f' && buf[1] == ' ') {
+        } else if (buf[0] == 'v' && buf[1] == 'n') {
             strtok(buf, " ");
-
-            char *face;
-            for (size_t i = 0; (face = strtok(NULL, " ")) && i < 3; i++) {
+            vec3 n = {0};
+            char *vert;
+            for (size_t i = 0; (vert = strtok(NULL, " ")) && i < 3; i++) {
+                switch (i) {
+                case 0:
+                    n.data[0] = atof(vert);
+                    break;
+                case 1:
+                    n.data[1] = atof(vert);
+                    break;
+                case 2:
+                    n.data[2] = atof(vert);
+                    break;
+                }
+            }
+            arrput(normals, n);
+        } else if (buf[0] == 'f' && buf[1] == ' ') {
+            char *ptr = buf + 1;
+            while (isspace(*ptr)) {
+                ++ptr;
+            }
+            for (size_t i = 0; i < 3; ++i) {
+                char *face = ptr, *tex, *norm;
                 // Face is something like 6/1/6, get the first number out.
-                for (char *ptr = face; *ptr != '\0'; ptr++) {
+                for (; ptr - buf < BUF_SIZE && *ptr != '\0'; ++ptr) {
                     if (*ptr == '/') {
                         *ptr = '\0';
                         break;
                     }
                 }
+                // Texture coordinate is the second number.
+                tex = ++ptr;
+                for (; ptr - buf < BUF_SIZE && *ptr != '\0'; ++ptr) {
+                    if (*ptr == '/') {
+                        *ptr = '\0';
+                        break;
+                    }
+                }
+                // Normal is the third number.
+                norm = ++ptr;
+                for (; ptr - buf < BUF_SIZE && *ptr != '\0'; ++ptr) {
+                    if (isspace(*ptr)) {
+                        *ptr = '\0';
+                        break;
+                    }
+                }
+                ++ptr;
                 arrput(facet_vrt, atoi(face) - 1);
+                arrput(facet_tex, atoi(tex));
+                arrput(facet_norm, atoi(norm) - 1);
             }
         }
     }
     model->verts = verts;
+    model->normals = normals;
     model->facet_vrt = facet_vrt;
+    model->facet_tex = facet_tex;
+    model->facet_norm = facet_norm;
     return true;
 }
 
@@ -116,8 +164,17 @@ vec3 model_vert_at_face(model const *model, size_t const iface,
     return model->verts[model->facet_vrt[iface * 3 + nthvert]];
 }
 
+vec3 model_norm_at_face(model const *model, size_t const iface,
+                        size_t const nthvert)
+{
+    return model->normals[model->facet_norm[iface * 3 + nthvert]];
+}
+
 void model_deinit(model *model)
 {
     arrfree(model->verts);
+    arrfree(model->normals);
     arrfree(model->facet_vrt);
+    arrfree(model->facet_tex);
+    arrfree(model->facet_norm);
 }
