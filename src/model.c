@@ -1,6 +1,9 @@
+#define STB_IMAGE_IMPLEMENTATION
 #include "model.h"
 #include "geometry.h"
 #include "stb_ds.h"
+#include "stb_image.h"
+#include "utils.h"
 #include <ctype.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,6 +15,7 @@ bool model_init(model *model, char const *filename)
 {
     vec3 *verts = NULL;
     vec3 *normals = NULL;
+    vec2 *tex = NULL;
     int32_t *facet_vrt = NULL;
     int32_t *facet_tex = NULL;
     int32_t *facet_norm = NULL;
@@ -57,6 +61,21 @@ bool model_init(model *model, char const *filename)
                 }
             }
             arrput(normals, n);
+        } else if (buf[0] == 'v' && buf[1] == 't') {
+            strtok(buf, " ");
+            vec2 t = {0};
+            char *vert;
+            for (size_t i = 0; (vert = strtok(NULL, " ")) && i < 2; i++) {
+                switch (i) {
+                case 0:
+                    t.data[0] = atof(vert);
+                    break;
+                case 1:
+                    t.data[1] = atof(vert);
+                    break;
+                }
+            }
+            arrput(tex, t);
         } else if (buf[0] == 'f' && buf[1] == ' ') {
             char *ptr = buf + 1;
             while (isspace(*ptr)) {
@@ -96,9 +115,22 @@ bool model_init(model *model, char const *filename)
     }
     model->verts = verts;
     model->normals = normals;
+    model->tex = tex;
     model->facet_vrt = facet_vrt;
     model->facet_tex = facet_tex;
     model->facet_norm = facet_norm;
+    {
+        const char nm[] = "_nm.tga";
+        size_t const filename_normal_len = strlen(filename) + sizeof(nm);
+        char *filename_normal = malloc(filename_normal_len);
+        memset(filename_normal, 0, filename_normal_len);
+        strcat(filename_normal, filename);
+        strcat(filename_normal, nm);
+        model->normal_map.buf = stbi_load(filename, &model->normal_map.width,
+                                          &model->normal_map.height,
+                                          &model->normal_map.channels, 0);
+        free(filename_normal);
+    }
     return true;
 }
 
@@ -170,11 +202,37 @@ vec3 model_norm_at_face(model const *model, size_t const iface,
     return model->normals[model->facet_norm[iface * 3 + nthvert]];
 }
 
+vec4 model_norm_at_uv(model const *model, int32_t const uv_x,
+                      int32_t const uv_y)
+{
+    int const index =
+        model->normal_map.channels *
+        ((model->normal_map.height - 1 - uv_y) * model->normal_map.width +
+         uv_x);
+    color color;
+    color.r = model->normal_map.buf[index];
+    color.g = model->normal_map.buf[index + 1];
+    color.b = model->normal_map.buf[index + 2];
+    return vec4_sub(
+        vec4_mul_scalar_rhs(
+            (vec4){{(double)color.b, (double)color.g, (double)color.r, 0}},
+            2. / 255),
+        (vec4){{1, 1, 1, 0}});
+}
+
+vec2 model_uv_at_face(model const *model, size_t const iface,
+                      size_t const nthvert)
+{
+    return model->tex[model->facet_tex[iface * 3 + nthvert]];
+}
+
 void model_deinit(model *model)
 {
     arrfree(model->verts);
     arrfree(model->normals);
+    arrfree(model->tex);
     arrfree(model->facet_vrt);
     arrfree(model->facet_tex);
     arrfree(model->facet_norm);
+    stbi_image_free(model->normal_map.buf);
 }

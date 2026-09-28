@@ -6,12 +6,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
+typedef struct tga_image {
+    uint8_t *buf;
+    int32_t width;
+    int32_t height;
+    int32_t channels;
+} tga_image;
+
 typedef struct model {
     vec3 *verts;
     vec3 *normals;
+    vec2 *tex;
     int32_t *facet_vrt;
     int32_t *facet_tex;
     int32_t *facet_norm;
+    tga_image normal_map;
 } model;
 
 bool model_init(model *model, char const *filename);
@@ -23,6 +32,10 @@ vec3 model_vert_at_face(model const *model, size_t const iface,
                         size_t const nthvert);
 vec3 model_norm_at_face(model const *model, size_t const iface,
                         size_t const nthvert);
+vec4 model_norm_at_uv(model const *model, int32_t const uv_x,
+                      int32_t const uv_y);
+vec2 model_uv_at_face(model const *model, size_t const iface,
+                      size_t const nthvert);
 void model_deinit(model *model);
 
 #endif // MODEL_H
