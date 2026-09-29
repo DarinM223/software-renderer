@@ -30,14 +30,13 @@ void smooth_shader_init(smooth_shader *shader, vec3 light)
 static vec4 smooth_vertex(void *ctx, int32_t const face, int32_t const vert)
 {
     smooth_shader *shader = ctx;
-    vec3 v = model_vert_at_face(shader->model, face, vert);
-    vec3 n = model_norm_at_face(shader->model, face, vert);
-    vec4 gl_Position = mat4_4_mul_vec4(&model_view, vec3_extend(v, 1.));
+    vec4 v = vec3_extend(model_vert_at_face(shader->model, face, vert), 1.);
+    vec4 n = vec3_extend(model_norm_at_face(shader->model, face, vert), 0.);
+    vec4 gl_Position = mat4_4_mul_vec4(&model_view, v);
     // If a model is transformed by the matrix M, we can convert its normal
     // vectors by the matrix (M^(-1))^T
     mat4_4 invert_transposed = mat4_4_invert_transpose(&model_view);
-    shader->norms[vert] =
-        VEC_XYZ(mat4_4_mul_vec4(&invert_transposed, vec3_extend(n, 0.)));
+    shader->norms[vert] = VEC_XYZ(mat4_4_mul_vec4(&invert_transposed, n));
     return mat4_4_mul_vec4(&perspective, gl_Position);
 }
 
@@ -72,7 +71,6 @@ typedef struct sample_shader {
 
 void sample_shader_init(sample_shader *shader, vec3 light)
 {
-    // extend light with 0. not 1. so the camera translation doesn't affect it.
     shader->l =
         VEC_NORMALIZED(4, mat4_4_mul_vec4(&model_view, vec3_extend(light, 0.)));
 }
@@ -80,14 +78,9 @@ void sample_shader_init(sample_shader *shader, vec3 light)
 static vec4 sample_vertex(void *ctx, int32_t const face, int32_t const vert)
 {
     sample_shader *shader = ctx;
-    vec3 v = model_vert_at_face(shader->model, face, vert);
-    // vec3 n = model_norm_at_face(shader->model, face, vert);
-    vec4 gl_Position = mat4_4_mul_vec4(&model_view, vec3_extend(v, 1.));
-    // If a model is transformed by the matrix M, we can convert its normal
-    // vectors by the matrix (M^(-1))^T
-    // mat4_4 invert_transposed = mat4_4_invert_transpose(&model_view);
-    // shader->norms[vert] =
-    //     VEC_XYZ(mat4_4_mul_vec4(&invert_transposed, vec3_extend(n, 0.)));
+    shader->uv[vert] = model_uv_at_face(shader->model, face, vert);
+    vec4 v = vec3_extend(model_vert_at_face(shader->model, face, vert), 1.);
+    vec4 gl_Position = mat4_4_mul_vec4(&model_view, v);
     return mat4_4_mul_vec4(&perspective, gl_Position);
 }
 
@@ -95,23 +88,22 @@ static bool sample_fragment(void *ctx, vec3 const bar, color *color)
 {
     (void)color;
     sample_shader *shader = ctx;
-    // vec3 n = VEC_NORMALIZED(
-    //     3,
-    //     vec3_add(vec3_mul_scalar_lhs(bar.data[0], shader->norms[0]),
-    //              vec3_add(vec3_mul_scalar_lhs(bar.data[1], shader->norms[1]),
-    //                       vec3_mul_scalar_lhs(bar.data[2],
-    //                       shader->norms[2]))));
-    // double diffuse = MAX(0, vec3_mul_dot(n, shader->l));
-    // vec3 r = vec3_sub(vec3_mul_scalar_rhs(n, vec3_mul_dot(n, shader->l) * 2),
-    //                   shader->l);
-    // // note that the camera lies on the z-axis (in eye coordinates),
-    // therefore
-    // // r.z, since (0, 0, 1) * (r.x, r.y, r.z) = r.z
-    // double specular = pow(MAX(0, VEC_Z(r)), shader->shininess);
-    // double brightness = MIN(1, shader->ambient + .4 * diffuse + .9 *
-    // specular); *color = (struct color){
-    //     .r = 255. * brightness, .g = 255. * brightness, .b = 255. *
-    //     brightness};
+    vec2 uv =
+        vec2_add(vec2_mul_scalar_rhs(shader->uv[0], bar.data[0]),
+                 vec2_add(vec2_mul_scalar_rhs(shader->uv[1], bar.data[1]),
+                          vec2_mul_scalar_rhs(shader->uv[2], bar.data[2])));
+    mat4_4 invert_transposed = mat4_4_invert_transpose(&model_view);
+    vec4 n =
+        VEC_NORMALIZED(4, mat4_4_mul_vec4(&invert_transposed,
+                                          model_norm_at_uv(shader->model, uv)));
+    vec4 r = VEC_NORMALIZED(
+        4, vec4_sub(vec4_mul_scalar_rhs(n, vec4_mul_dot(n, shader->l) * 2),
+                    shader->l));
+    double diffuse = MAX(0, vec4_mul_dot(n, shader->l));
+    double specular = pow(MAX(0, VEC_Z(r)), shader->shininess);
+    double brightness = MIN(1, shader->ambient + .4 * diffuse + .9 * specular);
+    *color = (struct color){
+        .r = 255. * brightness, .g = 255. * brightness, .b = 255. * brightness};
     return false;
 }
 
@@ -175,28 +167,55 @@ int main(int32_t argc, char **argv)
 
     n = alpha0*n0 + alpha1*n1 + alpha2*n2
     */
-    zbuffer_init(WIDTH, HEIGHT);
-    smooth_shader ctx = {
-        .model = &model,
-        .ambient = 0.3,
-        .shininess = 35,
-    };
-    smooth_shader_init(&ctx, light);
-    shader const shader = {
-        .vertex = &smooth_vertex,
-        .fragment = &smooth_fragment,
-        .ctx = &ctx,
-    };
+    {
+        zbuffer_init(WIDTH, HEIGHT);
+        smooth_shader ctx = {
+            .model = &model,
+            .ambient = 0.3,
+            .shininess = 35,
+        };
+        smooth_shader_init(&ctx, light);
+        shader const shader = {
+            .vertex = &smooth_vertex,
+            .fragment = &smooth_fragment,
+            .ctx = &ctx,
+        };
 
-    uint8_t buf[WIDTH * HEIGHT * CHANNELS] = {0};
-    for (size_t i = 0; i < model_nfaces(&model); ++i) {
-        triangle clip = {shader.vertex(shader.ctx, i, 0),
-                         shader.vertex(shader.ctx, i, 1),
-                         shader.vertex(shader.ctx, i, 2)};
-        rasterize(clip, shader, buf, WIDTH, HEIGHT, CHANNELS);
+        uint8_t buf[WIDTH * HEIGHT * CHANNELS] = {0};
+        for (size_t i = 0; i < model_nfaces(&model); ++i) {
+            triangle clip = {shader.vertex(shader.ctx, i, 0),
+                             shader.vertex(shader.ctx, i, 1),
+                             shader.vertex(shader.ctx, i, 2)};
+            rasterize(clip, shader, buf, WIDTH, HEIGHT, CHANNELS);
+        }
+        stbi_write_tga("framebuffer1.tga", WIDTH, HEIGHT, CHANNELS, buf);
+        zbuffer_deinit();
     }
-    stbi_write_tga("framebuffer1.tga", WIDTH, HEIGHT, CHANNELS, buf);
-    zbuffer_deinit();
+
+    {
+        zbuffer_init(WIDTH, HEIGHT);
+        sample_shader ctx = {
+            .model = &model,
+            .ambient = 0.3,
+            .shininess = 35,
+        };
+        sample_shader_init(&ctx, light);
+        shader const shader = {
+            .vertex = &sample_vertex,
+            .fragment = &sample_fragment,
+            .ctx = &ctx,
+        };
+
+        uint8_t buf[WIDTH * HEIGHT * CHANNELS] = {0};
+        for (size_t i = 0; i < model_nfaces(&model); ++i) {
+            triangle clip = {shader.vertex(shader.ctx, i, 0),
+                             shader.vertex(shader.ctx, i, 1),
+                             shader.vertex(shader.ctx, i, 2)};
+            rasterize(clip, shader, buf, WIDTH, HEIGHT, CHANNELS);
+        }
+        stbi_write_tga("framebuffer2.tga", WIDTH, HEIGHT, CHANNELS, buf);
+        zbuffer_deinit();
+    }
 
     model_deinit(&model);
 }

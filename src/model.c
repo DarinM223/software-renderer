@@ -13,6 +13,7 @@
 
 bool model_init(model *model, char const *filename)
 {
+    bool success = true;
     vec3 *verts = NULL;
     vec3 *normals = NULL;
     vec2 *tex = NULL;
@@ -45,7 +46,7 @@ bool model_init(model *model, char const *filename)
             arrput(verts, v);
         } else if (buf[0] == 'v' && buf[1] == 'n') {
             strtok(buf, " ");
-            vec3 n = {0};
+            vec4 n = {0};
             char *vert;
             for (size_t i = 0; (vert = strtok(NULL, " ")) && i < 3; i++) {
                 switch (i) {
@@ -60,7 +61,7 @@ bool model_init(model *model, char const *filename)
                     break;
                 }
             }
-            arrput(normals, n);
+            arrput(normals, VEC_XYZ(VEC_NORMALIZED(4, n)));
         } else if (buf[0] == 'v' && buf[1] == 't') {
             strtok(buf, " ");
             vec2 t = {0};
@@ -71,7 +72,7 @@ bool model_init(model *model, char const *filename)
                     t.data[0] = atof(vert);
                     break;
                 case 1:
-                    t.data[1] = atof(vert);
+                    t.data[1] = 1. - atof(vert);
                     break;
                 }
             }
@@ -108,7 +109,7 @@ bool model_init(model *model, char const *filename)
                 }
                 ++ptr;
                 arrput(facet_vrt, atoi(face) - 1);
-                arrput(facet_tex, atoi(tex));
+                arrput(facet_tex, atoi(tex) - 1);
                 arrput(facet_norm, atoi(norm) - 1);
             }
         }
@@ -125,13 +126,28 @@ bool model_init(model *model, char const *filename)
         char *filename_normal = malloc(filename_normal_len);
         memset(filename_normal, 0, filename_normal_len);
         strcat(filename_normal, filename);
+        // Strip file extension from file if it exists.
+        char *last = strrchr(filename_normal, '.');
+        if (last) {
+            filename_normal[last - filename_normal] = '\0';
+        }
         strcat(filename_normal, nm);
-        model->normal_map.buf = stbi_load(filename, &model->normal_map.width,
-                                          &model->normal_map.height,
-                                          &model->normal_map.channels, 0);
+        model->normal_map.buf = stbi_load(
+            filename_normal, &model->normal_map.width,
+            &model->normal_map.height, &model->normal_map.channels, 0);
+        if (!(success = model->normal_map.buf)) {
+            printf("Cannot load image at %s: %s\n", filename_normal,
+                   stbi_failure_reason());
+        }
         free(filename_normal);
+        if (!success) {
+            goto cleanup_model;
+        }
     }
-    return true;
+    return success;
+cleanup_model:
+    model_deinit(model);
+    return success;
 }
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))
@@ -202,20 +218,21 @@ vec3 model_norm_at_face(model const *model, size_t const iface,
     return model->normals[model->facet_norm[iface * 3 + nthvert]];
 }
 
-vec4 model_norm_at_uv(model const *model, int32_t const uv_x,
-                      int32_t const uv_y)
+vec4 model_norm_at_uv(model const *model, vec2 const uv)
 {
-    int const index =
-        model->normal_map.channels *
-        ((model->normal_map.height - 1 - uv_y) * model->normal_map.width +
-         uv_x);
+    int32_t uv_x = VEC_X(uv) * model->normal_map.width;
+    int32_t uv_y = VEC_Y(uv) * model->normal_map.height;
+    int32_t const index =
+        model->normal_map.channels * (uv_y * model->normal_map.width + uv_x);
     color color;
     color.r = model->normal_map.buf[index];
     color.g = model->normal_map.buf[index + 1];
     color.b = model->normal_map.buf[index + 2];
+    // stbi_image loads in RGBA order instead of BGRA order in the tutorial
+    // TGA loader.
     return vec4_sub(
         vec4_mul_scalar_rhs(
-            (vec4){{(double)color.b, (double)color.g, (double)color.r, 0}},
+            (vec4){{(double)color.r, (double)color.g, (double)color.b, 0.}},
             2. / 255),
         (vec4){{1, 1, 1, 0}});
 }

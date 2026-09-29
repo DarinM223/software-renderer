@@ -32,8 +32,7 @@ vec3 model_vert_at_face(model const *model, size_t const iface,
                         size_t const nthvert);
 vec3 model_norm_at_face(model const *model, size_t const iface,
                         size_t const nthvert);
-vec4 model_norm_at_uv(model const *model, int32_t const uv_x,
-                      int32_t const uv_y);
+vec4 model_norm_at_uv(model const *model, vec2 const uv);
 vec2 model_uv_at_face(model const *model, size_t const iface,
                       size_t const nthvert);
 void model_deinit(model *model);
