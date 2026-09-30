@@ -6,4 +6,4 @@ build.ninja
 CMakeCache.txt
 CMakeFiles/
 compile_commands.json
-*.tga
+/*.tga
