@@ -11,6 +11,40 @@
 
 #define BUF_SIZE 512
 
+bool tga_load_extra(char const *filename, char const *suffix, tga_image *result)
+{
+    size_t const filename_normal_len = strlen(filename) + strlen(suffix);
+    char *filename_normal = malloc(filename_normal_len);
+    memset(filename_normal, 0, filename_normal_len);
+    strcat(filename_normal, filename);
+    // Strip file extension from file if it exists.
+    char *last = strrchr(filename_normal, '.');
+    if (last) {
+        filename_normal[last - filename_normal] = '\0';
+    }
+    strcat(filename_normal, suffix);
+    result->buf = stbi_load(filename_normal, &result->width, &result->height,
+                            &result->channels, 0);
+    if (!result->buf) {
+        printf("Cannot load image at %s: %s\n", filename_normal,
+               stbi_failure_reason());
+    }
+    free(filename_normal);
+    return result->buf;
+}
+
+color tga_sample_2d(tga_image const *image, vec2 const uv)
+{
+    int32_t uv_x = VEC_X(uv) * image->width;
+    int32_t uv_y = VEC_Y(uv) * image->height;
+    int32_t const index = image->channels * (uv_y * image->width + uv_x);
+    color color;
+    color.r = image->buf[index];
+    color.g = image->buf[index + 1];
+    color.b = image->buf[index + 2];
+    return color;
+}
+
 bool model_init(model *model, char const *filename)
 {
     bool success = true;
@@ -120,29 +154,8 @@ bool model_init(model *model, char const *filename)
     model->facet_vrt = facet_vrt;
     model->facet_tex = facet_tex;
     model->facet_norm = facet_norm;
-    {
-        const char nm[] = "_nm.tga";
-        size_t const filename_normal_len = strlen(filename) + sizeof(nm);
-        char *filename_normal = malloc(filename_normal_len);
-        memset(filename_normal, 0, filename_normal_len);
-        strcat(filename_normal, filename);
-        // Strip file extension from file if it exists.
-        char *last = strrchr(filename_normal, '.');
-        if (last) {
-            filename_normal[last - filename_normal] = '\0';
-        }
-        strcat(filename_normal, nm);
-        model->normal_map.buf = stbi_load(
-            filename_normal, &model->normal_map.width,
-            &model->normal_map.height, &model->normal_map.channels, 0);
-        if (!(success = model->normal_map.buf)) {
-            printf("Cannot load image at %s: %s\n", filename_normal,
-                   stbi_failure_reason());
-        }
-        free(filename_normal);
-        if (!success) {
-            goto cleanup_model;
-        }
+    if (!(success = tga_load_extra(filename, "_nm.tga", &model->normal_map))) {
+        goto cleanup_model;
     }
     return success;
 cleanup_model:
@@ -220,14 +233,7 @@ vec3 model_norm_at_face(model const *model, size_t const iface,
 
 vec4 model_norm_at_uv(model const *model, vec2 const uv)
 {
-    int32_t uv_x = VEC_X(uv) * model->normal_map.width;
-    int32_t uv_y = VEC_Y(uv) * model->normal_map.height;
-    int32_t const index =
-        model->normal_map.channels * (uv_y * model->normal_map.width + uv_x);
-    color color;
-    color.r = model->normal_map.buf[index];
-    color.g = model->normal_map.buf[index + 1];
-    color.b = model->normal_map.buf[index + 2];
+    color color = tga_sample_2d(&model->normal_map, uv);
     // stbi_image loads in RGBA order instead of BGRA order in the tutorial
     // TGA loader.
     return vec4_sub(

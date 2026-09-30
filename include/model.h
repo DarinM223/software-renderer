@@ -23,6 +23,10 @@ typedef struct model {
     tga_image normal_map;
 } model;
 
+bool tga_load_extra(char const *filename, char const *suffix,
+                    tga_image *result);
+struct color tga_sample_2d(tga_image const *image, vec2 const uv);
+
 bool model_init(model *model, char const *filename);
 void model_sort_by_z(model *model);
 size_t model_nverts(model const *model);

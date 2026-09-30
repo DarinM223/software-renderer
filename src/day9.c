@@ -4,6 +4,7 @@
 #include "model.h"
 #include "our_gl.h"
 #include "stb_ds.h"
+#include "stb_image.h"
 #include "stb_image_write.h"
 
 #define WIDTH 800
@@ -104,6 +105,78 @@ static bool sample_fragment(void *ctx, vec3 const bar, color *color)
     double brightness = MIN(1, shader->ambient + .4 * diffuse + .9 * specular);
     *color = (struct color){
         .r = 255. * brightness, .g = 255. * brightness, .b = 255. * brightness};
+    return false;
+}
+
+typedef struct color_spec_shader {
+    vec4 l;
+    model *model;
+    vec2 uv[3];
+    tga_image color_map;
+    tga_image specular_map;
+    double ambient;
+    double shininess;
+} color_spec_shader;
+
+bool color_spec_shader_init(color_spec_shader *shader, char const *model_name,
+                            vec3 light)
+{
+    bool success = true;
+    shader->l =
+        VEC_NORMALIZED(4, mat4_4_mul_vec4(&model_view, vec3_extend(light, 0.)));
+    if (!(success =
+              tga_load_extra(model_name, "_diffuse.tga", &shader->color_map))) {
+        return success;
+    }
+    if (!(success =
+              tga_load_extra(model_name, "_spec.tga", &shader->specular_map))) {
+        goto cleanup_color_map;
+    }
+    return success;
+cleanup_color_map:
+    stbi_image_free(shader->color_map.buf);
+    return success;
+}
+
+void color_spec_shader_free(color_spec_shader *shader)
+{
+    stbi_image_free(shader->color_map.buf);
+    stbi_image_free(shader->specular_map.buf);
+}
+
+static vec4 color_spec_vertex(void *ctx, int32_t const face, int32_t const vert)
+{
+    color_spec_shader *shader = ctx;
+    shader->uv[vert] = model_uv_at_face(shader->model, face, vert);
+    vec4 v = vec3_extend(model_vert_at_face(shader->model, face, vert), 1.);
+    vec4 gl_Position = mat4_4_mul_vec4(&model_view, v);
+    return mat4_4_mul_vec4(&perspective, gl_Position);
+}
+
+static bool color_spec_fragment(void *ctx, vec3 const bar, color *color)
+{
+    (void)color;
+    color_spec_shader *shader = ctx;
+    vec2 uv =
+        vec2_add(vec2_mul_scalar_rhs(shader->uv[0], bar.data[0]),
+                 vec2_add(vec2_mul_scalar_rhs(shader->uv[1], bar.data[1]),
+                          vec2_mul_scalar_rhs(shader->uv[2], bar.data[2])));
+    mat4_4 invert_transposed = mat4_4_invert_transpose(&model_view);
+    vec4 n =
+        VEC_NORMALIZED(4, mat4_4_mul_vec4(&invert_transposed,
+                                          model_norm_at_uv(shader->model, uv)));
+    vec4 r = VEC_NORMALIZED(
+        4, vec4_sub(vec4_mul_scalar_rhs(n, vec4_mul_dot(n, shader->l) * 2),
+                    shader->l));
+    *color = tga_sample_2d(&shader->color_map, uv);
+    double diffuse = 1. * MAX(0, vec4_mul_dot(n, shader->l));
+    double specular =
+        (.5 + 2. * tga_sample_2d(&shader->specular_map, uv).r / 255.) *
+        pow(MAX(0, VEC_Z(r)), shader->shininess);
+    double brightness = shader->ambient + diffuse + specular;
+    color->r = MIN(255, (uint32_t)color->r * brightness);
+    color->g = MIN(255, (uint32_t)color->g * brightness);
+    color->b = MIN(255, (uint32_t)color->b * brightness);
     return false;
 }
 
@@ -214,6 +287,36 @@ int main(int32_t argc, char **argv)
             rasterize(clip, shader, buf, WIDTH, HEIGHT, CHANNELS);
         }
         stbi_write_tga("framebuffer2.tga", WIDTH, HEIGHT, CHANNELS, buf);
+        zbuffer_deinit();
+    }
+
+    {
+        zbuffer_init(WIDTH, HEIGHT);
+        color_spec_shader ctx = {
+            .model = &model,
+            .ambient = 0.4,
+            .shininess = 35,
+        };
+        if (!color_spec_shader_init(&ctx, argv[1], light)) {
+            printf("Error initializing color specular shader\n");
+            goto cleanup_zbuffer;
+        }
+        shader const shader = {
+            .vertex = &color_spec_vertex,
+            .fragment = &color_spec_fragment,
+            .ctx = &ctx,
+        };
+
+        uint8_t buf[WIDTH * HEIGHT * CHANNELS] = {0};
+        for (size_t i = 0; i < model_nfaces(&model); ++i) {
+            triangle clip = {shader.vertex(shader.ctx, i, 0),
+                             shader.vertex(shader.ctx, i, 1),
+                             shader.vertex(shader.ctx, i, 2)};
+            rasterize(clip, shader, buf, WIDTH, HEIGHT, CHANNELS);
+        }
+        stbi_write_tga("framebuffer3.tga", WIDTH, HEIGHT, CHANNELS, buf);
+        color_spec_shader_free(&ctx);
+    cleanup_zbuffer:
         zbuffer_deinit();
     }
 
