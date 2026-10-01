@@ -47,7 +47,6 @@ color tga_sample_2d(tga_image const *image, vec2 const uv)
 
 bool model_init(model *model, char const *filename)
 {
-    bool success = true;
     vec3 *verts = NULL;
     vec3 *normals = NULL;
     vec2 *tex = NULL;
@@ -154,13 +153,7 @@ bool model_init(model *model, char const *filename)
     model->facet_vrt = facet_vrt;
     model->facet_tex = facet_tex;
     model->facet_norm = facet_norm;
-    if (!(success = tga_load_extra(filename, "_nm.tga", &model->normal_map))) {
-        goto cleanup_model;
-    }
-    return success;
-cleanup_model:
-    model_deinit(model);
-    return success;
+    return true;
 }
 
 #define MIN(X, Y) (((X) < (Y)) ? (X) : (Y))

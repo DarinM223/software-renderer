@@ -182,6 +182,7 @@ static bool color_spec_fragment(void *ctx, vec3 const bar, color *color)
 
 int main(int32_t argc, char **argv)
 {
+    int err = 0;
     if (argc < 2) {
         printf("Model object needed as parameter\n");
         return 1;
@@ -191,6 +192,10 @@ int main(int32_t argc, char **argv)
     if (!model_init(&model, argv[1])) {
         printf("Couldn't load model from filename %s\n", argv[1]);
         return 1;
+    }
+    if ((err = !(tga_load_extra(argv[1], "_nm.tga", &model.normal_map)))) {
+        printf("Couldn't load model normals for %s\n", argv[1]);
+        goto cleanup_model;
     }
 
     vec3 const light = {{1, 1, 1}};
@@ -297,7 +302,7 @@ int main(int32_t argc, char **argv)
             .ambient = 0.4,
             .shininess = 35,
         };
-        if (!color_spec_shader_init(&ctx, argv[1], light)) {
+        if ((err = !color_spec_shader_init(&ctx, argv[1], light))) {
             printf("Error initializing color specular shader\n");
             goto cleanup_zbuffer;
         }
@@ -320,5 +325,7 @@ int main(int32_t argc, char **argv)
         zbuffer_deinit();
     }
 
+cleanup_model:
     model_deinit(&model);
+    return err;
 }
