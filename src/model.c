@@ -229,11 +229,12 @@ vec4 model_norm_at_uv(model const *model, vec2 const uv)
     color color = tga_sample_2d(&model->normal_map, uv);
     // stbi_image loads in RGBA order instead of BGRA order in the tutorial
     // TGA loader.
-    return vec4_sub(
-        vec4_mul_scalar_rhs(
-            (vec4){{(double)color.r, (double)color.g, (double)color.b, 0.}},
-            2. / 255),
-        (vec4){{1, 1, 1, 0}});
+    return VEC_NORMALIZED(
+        4,
+        vec4_sub(vec4_mul_scalar_rhs((vec4){{(double)color.r, (double)color.g,
+                                             (double)color.b, 0.}},
+                                     2. / 255),
+                 (vec4){{1, 1, 1, 0}}));
 }
 
 vec2 model_uv_at_face(model const *model, size_t const iface,

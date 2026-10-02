@@ -4,7 +4,7 @@
 #include <stdlib.h>
 
 mat4_4 model_view, viewport, perspective;
-static double *zbuffer;
+double *zbuffer;
 
 void viewport_init(int32_t const x, int32_t const y, int32_t const w,
                    int32_t const h)
