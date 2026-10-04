@@ -25,7 +25,7 @@ void zbuffer_init(int32_t const width, int32_t const height)
 {
     zbuffer = malloc((size_t)width * height * sizeof(*zbuffer));
     for (size_t i = 0; i < (size_t)width * height; ++i) {
-        zbuffer[i] = -DBL_MAX;
+        zbuffer[i] = -1000.;
     }
 }
 
