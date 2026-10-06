@@ -1,4 +1,5 @@
 #include "our_gl.h"
+#include "geometry.h"
 #include <float.h>
 #include <math.h> // IWYU pragma: keep
 #include <stdlib.h>
@@ -95,15 +96,25 @@ void rasterize(triangle const clip, shader const shader, uint8_t *framebuffer,
              y <= MIN(framebuffer_height - 1, (int64_t)bbmaxy); ++y) {
             // Determine barycentric coordinates for (x, y).
             mat3_3 invert_transpose = mat3_3_invert_transpose(&abc);
-            vec3 barycentric =
+            vec3 barycentric_screen =
                 mat3_3_mul_vec3(&invert_transpose, (vec3){{x, y, 1.}});
+            vec3 barycentric_clip = {{
+                VEC_X(barycentric_screen) / VEC_W(clip[0]),
+                VEC_Y(barycentric_screen) / VEC_W(clip[1]),
+                VEC_Z(barycentric_screen) / VEC_W(clip[2]),
+            }};
+            barycentric_clip =
+                vec3_div_scalar(barycentric_clip, VEC_X(barycentric_clip) +
+                                                      VEC_Y(barycentric_clip) +
+                                                      VEC_Z(barycentric_clip));
             // Don't color coordinates that are not in the triangle.
-            if (VEC_X(barycentric) < 0 || VEC_Y(barycentric) < 0 ||
-                VEC_Z(barycentric) < 0) {
+            if (VEC_X(barycentric_screen) < 0 ||
+                VEC_Y(barycentric_screen) < 0 ||
+                VEC_Z(barycentric_screen) < 0) {
                 continue;
             }
             double z = vec3_mul_dot(
-                barycentric,
+                barycentric_screen,
                 (vec3){{VEC_Z(ndc[0]), VEC_Z(ndc[1]), VEC_Z(ndc[2])}});
             // If pixel's z value is inferior to the one already painted, then
             // discard it.
@@ -111,7 +122,8 @@ void rasterize(triangle const clip, shader const shader, uint8_t *framebuffer,
                 continue;
             }
             color color;
-            bool discard = shader.fragment(shader.ctx, barycentric, &color);
+            bool discard =
+                shader.fragment(shader.ctx, barycentric_clip, &color);
             if (discard) {
                 continue;
             }

@@ -1,4 +1,3 @@
-#include <stdnoreturn.h>
 #define STB_DS_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #define WIDTH 800
@@ -139,15 +138,19 @@ int main(int32_t argc, char **argv)
         return 1;
     }
 
-    model model = {0};
-    if (!model_init(&model, argv[1])) {
-        printf("Couldn't load model from filename %s\n", argv[1]);
-        return 1;
-    }
-    if ((err =
-             !tga_load_extra(argv[1], "_nm_tangent.tga", &model.normal_map))) {
-        printf("Couldn't load model normals for %s\n", argv[1]);
-        goto cleanup_model;
+    model *models = NULL;
+    for (int32_t i = 1; i < argc; ++i) {
+        model model = {0};
+        if (!model_init(&model, argv[i])) {
+            printf("Couldn't load model from filename %s\n", argv[1]);
+            return 1;
+        }
+        if ((err = !tga_load_extra(argv[1], "_nm_tangent.tga",
+                                   &model.normal_map))) {
+            printf("Couldn't load model normals for %s\n", argv[1]);
+            goto cleanup_model;
+        }
+        arrpush(models, model);
     }
 
     vec3 const light = {{1, 1, 1}};
@@ -157,33 +160,42 @@ int main(int32_t argc, char **argv)
 
     double camera_zbuffer[WIDTH * HEIGHT] = {0};
     uint8_t camera_buf[WIDTH * HEIGHT * CHANNELS] = {0};
+    for (size_t x = 0; x < WIDTH; ++x) {
+        for (size_t y = 0; y < HEIGHT; ++y) {
+            size_t idx = (y * WIDTH + x) * CHANNELS;
+            camera_buf[idx] = 177;
+            camera_buf[idx + 1] = 195;
+            camera_buf[idx + 2] = 209;
+        }
+    }
 
     // First pass: render from camera point of view:
     {
-        tangent_shader ctx = {
-            .model = &model,
-            .ambient = 0.4,
-            .shininess = 35,
-        };
-        if ((err = !tangent_shader_init(&ctx, argv[1], light))) {
-            printf("Error initializing color specular shader\n");
-            goto cleanup_model;
-        }
-        shader const shader = {
-            .vertex = &tangent_vertex,
-            .fragment = &tangent_fragment,
-            .ctx = &ctx,
-        };
         zbuffer_init(WIDTH, HEIGHT);
         look_at(eye, center, up);
         perspective_init(VEC_NORMALIZE(3, vec3_sub(eye, center)));
         viewport_init(WIDTH / 16, HEIGHT / 16, WIDTH * 7 / 8, HEIGHT * 7 / 8);
 
-        for (size_t i = 0; i < model_nfaces(&model); ++i) {
-            triangle clip = {shader.vertex(shader.ctx, i, 0),
-                             shader.vertex(shader.ctx, i, 1),
-                             shader.vertex(shader.ctx, i, 2)};
-            rasterize(clip, shader, camera_buf, WIDTH, HEIGHT, CHANNELS);
+        shader shader = {.vertex = &tangent_vertex,
+                         .fragment = &tangent_fragment};
+        for (ptrdiff_t i = 0; i < arrlen(models); ++i) {
+            tangent_shader ctx = {
+                .model = &models[i],
+                .ambient = 0.4,
+                .shininess = 35,
+            };
+            if ((err = !tangent_shader_init(&ctx, argv[i + 1], light))) {
+                printf("Error initializing color specular shader\n");
+                goto cleanup_zbuffer;
+            }
+            shader.ctx = &ctx;
+            for (size_t j = 0; j < model_nfaces(ctx.model); ++j) {
+                triangle clip = {shader.vertex(shader.ctx, j, 0),
+                                 shader.vertex(shader.ctx, j, 1),
+                                 shader.vertex(shader.ctx, j, 2)};
+                rasterize(clip, shader, camera_buf, WIDTH, HEIGHT, CHANNELS);
+            }
+            tangent_shader_free(&ctx);
         }
 
         stbi_write_tga("framebuffer1.tga", WIDTH, HEIGHT, CHANNELS, camera_buf);
@@ -194,8 +206,9 @@ int main(int32_t argc, char **argv)
                 camera_zbuffer[y * WIDTH + x] = zbuffer[y * WIDTH + x];
             }
         }
+
+    cleanup_zbuffer:
         zbuffer_deinit();
-        tangent_shader_free(&ctx);
     }
 
     // Save camera matrix before switching state to the light's viewpoint.
@@ -211,23 +224,26 @@ int main(int32_t argc, char **argv)
     // Second pass: render from light point of view:
     zbuffer_init(SHADOW_WIDTH, SHADOW_HEIGHT);
     {
-        blank_shader ctx = {.model = &model};
-        shader const shader = {
-            .vertex = &blank_vertex, .fragment = &blank_fragment, .ctx = &ctx};
-
         look_at(light, center, up);
         perspective_init(VEC_NORMALIZE(3, vec3_sub(eye, center)));
         viewport_init(SHADOW_WIDTH / 16, SHADOW_HEIGHT / 16,
                       SHADOW_WIDTH * 7 / 8, SHADOW_HEIGHT * 7 / 8);
 
+        blank_shader ctx = {0};
+        shader const shader = {
+            .vertex = &blank_vertex, .fragment = &blank_fragment, .ctx = &ctx};
+
         uint8_t *shadow_buf = malloc(SHADOW_WIDTH * SHADOW_HEIGHT * CHANNELS);
         memset(shadow_buf, 0, SHADOW_WIDTH * SHADOW_HEIGHT * CHANNELS);
-        for (size_t i = 0; i < model_nfaces(&model); ++i) {
-            triangle clip = {shader.vertex(shader.ctx, i, 0),
-                             shader.vertex(shader.ctx, i, 1),
-                             shader.vertex(shader.ctx, i, 2)};
-            rasterize(clip, shader, shadow_buf, SHADOW_WIDTH, SHADOW_HEIGHT,
-                      CHANNELS);
+        for (ptrdiff_t i = 0; i < arrlen(models); ++i) {
+            ctx.model = &models[i];
+            for (size_t j = 0; j < model_nfaces(ctx.model); ++j) {
+                triangle clip = {shader.vertex(shader.ctx, j, 0),
+                                 shader.vertex(shader.ctx, j, 1),
+                                 shader.vertex(shader.ctx, j, 2)};
+                rasterize(clip, shader, shadow_buf, SHADOW_WIDTH, SHADOW_HEIGHT,
+                          CHANNELS);
+            }
         }
         stbi_write_tga("framebuffer2.tga", SHADOW_WIDTH, SHADOW_HEIGHT,
                        CHANNELS, shadow_buf);
@@ -241,11 +257,6 @@ int main(int32_t argc, char **argv)
         N = mat4_4_mul_mat4_4(&viewport, &perspective_mv);
     }
 
-    size_t background_count = 0;
-    size_t bounds_count = 0;
-    size_t visible_count = 0;
-    size_t shadow_count = 0;
-
     // Post-processing of fragments.
     for (int32_t x = 0; x < WIDTH; ++x) {
         for (int32_t y = 0; y < HEIGHT; ++y) {
@@ -255,16 +266,14 @@ int main(int32_t argc, char **argv)
             vec3 p = vec3_div_scalar(VEC_XYZ(q), VEC_W(q));
             bool lit =
                 // In background:
-                ((VEC_Z(fragment) < -100) && (++background_count, true)) ||
+                (VEC_Z(fragment) < -100) ||
                 // Out of bounds:
-                ((VEC_X(p) < 0 || VEC_X(p) >= SHADOW_WIDTH || VEC_Y(p) < 0 ||
-                  VEC_Y(p) >= SHADOW_HEIGHT) &&
-                 (++bounds_count, true)) ||
+                (VEC_X(p) < 0 || VEC_X(p) >= SHADOW_WIDTH || VEC_Y(p) < 0 ||
+                 VEC_Y(p) >= SHADOW_HEIGHT) ||
                 // Is visible:
-                ((VEC_Z(p) > zbuffer[(int32_t)VEC_X(p) +
-                                     (int32_t)VEC_Y(p) * SHADOW_WIDTH] -
-                                 .03) &&
-                 (++visible_count, true));
+                (VEC_Z(p) >
+                 zbuffer[(int32_t)VEC_X(p) + (int32_t)VEC_Y(p) * SHADOW_WIDTH] -
+                     .03);
             if (lit) continue;
             color c = framebuffer_get_color(camera_buf, x, y);
             vec3 a = {{c.r, c.g, c.b}};
@@ -275,14 +284,13 @@ int main(int32_t argc, char **argv)
         }
     }
 
-    printf("background: %zu\n", background_count);
-    printf("out of bounds: %zu\n", bounds_count);
-    printf("visible: %zu\n", visible_count);
-    printf("shadowed: %zu\n", shadow_count);
     stbi_write_tga("framebuffer3.tga", WIDTH, HEIGHT, CHANNELS, camera_buf);
 
     zbuffer_deinit();
 cleanup_model:
-    model_deinit(&model);
+    for (ptrdiff_t i = 0; i < arrlen(models); ++i) {
+        model_deinit(&models[i]);
+    }
+    arrfree(models);
     return err;
 }
