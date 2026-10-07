@@ -27,8 +27,9 @@ static color const yellow = {255, 200, 0};
 
 #if defined(WIDTH) && defined(HEIGHT) && defined(CHANNELS)
 #include <stdlib.h>
-color framebuffer_get_color(uint8_t *buf, uint8_t x, uint8_t y)
+color framebuffer_get_color(uint8_t *buf, int32_t x, int32_t y)
 {
+    if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) return (color){0};
     int const index = CHANNELS * ((HEIGHT - 1 - y) * WIDTH + x);
     return (color){.r = buf[index], .g = buf[index + 1], .b = buf[index + 2]};
 }

@@ -17,7 +17,7 @@ extern mat4_4 model_view, perspective, viewport;
 extern double *zbuffer;
 
 typedef struct blank_shader {
-    model *model;
+    model const *model;
 } blank_shader;
 
 static vec4 blank_vertex(void *ctx, int32_t const face, int32_t const vert)
@@ -37,7 +37,7 @@ static bool blank_fragment(void *ctx, vec3 const bar, color *color)
 
 typedef struct tangent_shader {
     vec4 l;
-    model *model;
+    model const *model;
     vec4 tri[3];
     vec2 uv[3];
     vec4 norm[3];
@@ -258,6 +258,7 @@ int main(int32_t argc, char **argv)
     }
 
     // Post-processing of fragments.
+    bool mask[WIDTH * HEIGHT] = {0};
     for (int32_t x = 0; x < WIDTH; ++x) {
         for (int32_t y = 0; y < HEIGHT; ++y) {
             vec4 fragment = mat4_4_mul_vec4(
@@ -274,13 +275,33 @@ int main(int32_t argc, char **argv)
                 (VEC_Z(p) >
                  zbuffer[(int32_t)VEC_X(p) + (int32_t)VEC_Y(p) * SHADOW_WIDTH] -
                      .03);
-            if (lit) continue;
+            mask[y * WIDTH + x] = lit;
+        }
+    }
+
+    {
+        uint8_t *maskimg = malloc(WIDTH * HEIGHT * CHANNELS);
+        for (int32_t x = 0; x < WIDTH; ++x) {
+            for (int32_t y = 0; y < HEIGHT; ++y) {
+                if (mask[y * WIDTH + x]) continue;
+                framebuffer_set_color(maskimg, x, y, (color){255, 255, 255});
+            }
+        }
+        stbi_write_tga("mask.tga", WIDTH, HEIGHT, CHANNELS, maskimg);
+        free(maskimg);
+    }
+
+    for (int32_t x = 0; x < WIDTH; ++x) {
+        for (int32_t y = 0; y < HEIGHT; ++y) {
+            if (mask[y * WIDTH + x]) continue;
             color c = framebuffer_get_color(camera_buf, x, y);
             vec3 a = {{c.r, c.g, c.b}};
-            if (VEC_NORMALIZE(3, a) < 80) continue;
+            double const a_norm = VEC_NORMALIZE(3, a);
+            if (a_norm < 80) continue;
             a = vec3_mul_scalar_rhs(VEC_NORMALIZED(3, a), 80.);
-            framebuffer_set_color(camera_buf, x, y,
-                                  (color){VEC_X(a), VEC_Y(a), VEC_Z(a)});
+            framebuffer_set_color(
+                camera_buf, x, y,
+                (color){.r = VEC_X(a), .g = VEC_Y(a), .b = VEC_Z(a)});
         }
     }
 

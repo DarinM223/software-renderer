@@ -267,7 +267,7 @@ static inline double mat1_1_det(mat1_1 const *src)
     static inline MAT(R1, C2) mat##R1##_##C1##_mul_mat##C1##_##C2(             \
         MAT(R1, C1) const *lhs, MAT(C1, C2) const *rhs)                        \
     {                                                                          \
-        MAT(R1, C2) ret;                                                       \
+        MAT(R1, C2) ret = {0};                                                 \
         for (int32_t i = R1; i--;) {                                           \
             for (int32_t j = C2; j--;) {                                       \
                 for (int32_t k = C1; k--;                                      \

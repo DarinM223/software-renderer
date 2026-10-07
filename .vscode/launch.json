@@ -33,7 +33,7 @@
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceRoot}/day11",
-      "args": ["obj/diablo3_pose.obj"],
+      "args": ["obj/floor.obj", "obj/diablo3_pose.obj"],
       "cwd": "${workspaceRoot}"
     }
   ]
