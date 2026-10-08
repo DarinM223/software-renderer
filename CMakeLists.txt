@@ -61,3 +61,8 @@ add_executable(day11)
 target_sources(day11 PUBLIC src/day11.c src/our_gl.c src/model.c)
 target_compile_options(day11 PUBLIC -O3 -march=native)
 target_link_libraries(day11 m OpenMP::OpenMP_C)
+
+add_executable(day12)
+target_sources(day12 PUBLIC src/day12.c src/our_gl.c src/model.c)
+target_compile_options(day12 PUBLIC -O3 -march=native)
+target_link_libraries(day12 m OpenMP::OpenMP_C)
