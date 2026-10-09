@@ -121,7 +121,7 @@ int main(int32_t argc, char **argv)
     }
 
     // Second pass: render from many lights points of views
-    bool mask[WIDTH * HEIGHT] = {0};
+    double mask[WIDTH * HEIGHT] = {0};
     srand(time(NULL));
     for (size_t i = 0; i < 1000; ++i) {
         double y = (double)rand() / (double)RAND_MAX;
@@ -193,8 +193,40 @@ int main(int32_t argc, char **argv)
                 (color){.r = c.r * m, .g = c.g * m, .b = c.b * m});
         }
     }
-
     stbi_write_tga("framebuffer2.tga", WIDTH, HEIGHT, CHANNELS, camera_buf);
+
+    // Edge detection
+    double const threshold = .15;
+    for (int32_t y = 1; y < HEIGHT - 1; ++y) {
+        for (int32_t x = 1; x < WIDTH - 1; ++x) {
+            vec2 sum = {0};
+            for (int32_t j = -1; j <= 1; ++j) {
+                for (int32_t i = -1; i <= 1; ++i) {
+                    int32_t const Gx[3][3] = {
+                        {-1, 0, 1},
+                        {-2, 0, 2},
+                        {-1, 0, 1},
+                    };
+                    int32_t const Gy[3][3] = {
+                        {-1, -2, -1},
+                        {0, 0, 0},
+                        {1, 2, 1},
+                    };
+                    sum = vec2_add(
+                        sum,
+                        (vec2){{Gx[j + 1][i + 1] *
+                                    camera_zbuffer[(y + j) * WIDTH + x + i],
+                                Gy[j + 1][i + 1] *
+                                    camera_zbuffer[(y + j) * WIDTH + x + i]}});
+                }
+            }
+            if (VEC_NORMALIZE(2, sum) > threshold) {
+                framebuffer_set_color(camera_buf, x, y, (color){0, 0, 0});
+            }
+        }
+    }
+    stbi_write_tga("framebuffer3.tga", WIDTH, HEIGHT, CHANNELS, camera_buf);
+
 cleanup_model:
     for (ptrdiff_t i = 0; i < arrlen(models); ++i) {
         model_deinit(&models[i]);
