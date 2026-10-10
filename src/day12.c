@@ -54,9 +54,9 @@ int main(int32_t argc, char **argv)
     model *models = NULL;
     for (int32_t i = 1; i < argc; ++i) {
         model model = {0};
-        if (!model_init(&model, argv[i])) {
+        if ((err = !model_init(&model, argv[i]))) {
             printf("Couldn't load model from filename %s\n", argv[1]);
-            return 1;
+            goto cleanup_model;
         }
         if ((err = !tga_load_extra(argv[1], "_nm_tangent.tga",
                                    &model.normal_map))) {
