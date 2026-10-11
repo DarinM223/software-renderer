@@ -6,7 +6,7 @@ include_directories(include/)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address,leak,undefined")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -Wpedantic -g")
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 99)
 # Use this to avoid having to #undef NDEBUG in every file.
 set(CMAKE_BUILD_TYPE Debug)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
